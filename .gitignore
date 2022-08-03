@@ -1,0 +1,6 @@
+###weight files
+
+*.pth
+
+###result files
+*.txt
