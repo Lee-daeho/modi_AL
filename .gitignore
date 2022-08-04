@@ -1,6 +1,7 @@
 ###weight files
 
 *.pth
+*.tar
 
 ###result files
 *.txt

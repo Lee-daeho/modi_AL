@@ -86,7 +86,7 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
+    def __init__(self, block, num_blocks, num_classes=10, zero_init_residual=True):
         super(ResNet, self).__init__()
         self.in_planes = 64
 
@@ -96,8 +96,15 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        self.linear = nn.Linear(512*block.expansion, num_classes)
+        self.fc = nn.Linear(512*block.expansion, num_classes)
         # self.linear2 = nn.Linear(1000, num_classes)
+
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck):
+                    nn.init.constant_(m.bn3.weight, 0)
+                elif isinstance(m, BasicBlock):
+                    nn.init.constant_(m.bn2.weight, 0)
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -116,7 +123,7 @@ class ResNet(nn.Module):
         out = F.avg_pool2d(out4, 4)
         outf = out.view(out.size(0), -1)
         # outl = self.linear(outf)
-        out = self.linear(outf)
+        out = self.fc(outf)
         return out, outf, [out1, out2, out3, out4]
 
 class ResNetfm(nn.Module):
@@ -130,7 +137,7 @@ class ResNetfm(nn.Module):
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        self.linear = nn.Linear(512*block.expansion, num_classes)
+        self.fc = nn.Linear(512*block.expansion, num_classes)
         # self.linear2 = nn.Linear(1000, num_classes)
 
     def _make_layer(self, block, planes, num_blocks, stride):
@@ -150,13 +157,13 @@ class ResNetfm(nn.Module):
         out = F.avg_pool2d(out4, 4)
         outf = out.view(out.size(0), -1)
         # outl = self.linear(outf)
-        out = self.linear(outf)
+        out = self.fc(outf)
         return out, outf, [out1, out2, out3, out4]
 
 
 
-def ResNet18(num_classes = 10):
-    return ResNet(BasicBlock, [2,2,2,2], num_classes)
+def ResNet18(num_classes = 10, zero_init_residual=True):
+    return ResNet(BasicBlock, [2,2,2,2], num_classes, zero_init_residual)
 
 def ResNet18fm(num_classes = 10):
     return ResNetfm(BasicBlock, [2,2,2,2], num_classes)

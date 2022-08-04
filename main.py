@@ -59,7 +59,7 @@ parser.add_argument("--weight_decay", default=0, type=float,
                     help="Weight deay if we apply some.")
 parser.add_argument("--img_size", type=int, default=32,
                     help="Image size for training and test")
-parser.add_argument("--self_supervised", type=bool, action='store_true')
+parser.add_argument("--self_supervised", action='store_true')
 args = parser.parse_args()
 
 
@@ -120,12 +120,16 @@ if __name__ == '__main__':
         NUM_TRAIN = no_train
         indices = list(range(NUM_TRAIN))
         random.shuffle(indices)
+        sim_model = None
 
         if args.self_supervised:
 
-            init_lr = SIM_LR * args.batch_size / 256
+            init_lr = SIM_LR * SIM_BATCH / 256
 
-            sim_model = SimSiam(resnet.ResNet18)
+            sim_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
+
+            sim_model.to(args.device)
+            sim_model = torch.nn.DataParallel(sim_model)
 
             sim_criterion = nn.CosineSimilarity(dim=1).cuda(args.device)
 
@@ -148,7 +152,7 @@ if __name__ == '__main__':
                     images[1] = images[1].cuda(args.device)
 
                     p1, p2, z1, z2 = sim_model(x1=images[0], x2=images[1])
-                    loss = -(criterion(p1, z2).mean() + criterion(p2, z1).mean()) * 0.5
+                    loss = -(sim_criterion(p1, z2).mean() + sim_criterion(p2, z1).mean()) * 0.5
 
                     losses.update(loss.item(), images[0].size(0))
 
@@ -156,12 +160,12 @@ if __name__ == '__main__':
                     loss.backward()
                     sim_optimizer.step()
                 
-                save_checkpoint({               
-                'epoch': epoch + 1,
-                'arch': args.base_model,
-                'state_dict': sim_model.state_dict(),
-                'optimizer' : sim_optimizer.state_dict(),
-            }, is_best=False, filename='checkpoint_{:04d}.pth.tar'.format(epoch))
+            #     save_checkpoint({               
+            #     'epoch': epoch + 1,
+            #     'arch': args.base_model,
+            #     'state_dict': sim_model.state_dict(),
+            #     'optimizer' : sim_optimizer.state_dict(),
+            # }, is_best=False, filename='sim_models/' + 'checkpoint_{:04d}.pth.tar'.format(epoch))
 
 
         if args.total:
@@ -175,7 +179,7 @@ if __name__ == '__main__':
                                     pin_memory=True, drop_last=True)
         test_loader  = DataLoader(data_test, batch_size=BATCH)
         dataloaders  = {'train': train_loader, 'test': test_loader}
-
+        
         for cycle in range(CYCLES):
             
             # Randomly sample 10000 unlabeled data points
@@ -188,10 +192,24 @@ if __name__ == '__main__':
                     if args.dataset == "fashionmnist":
                         resnet18    = resnet.ResNet18fm(num_classes=NO_CLASSES).cuda()
                     else:
-                        #resnet18    = vgg11().cuda() 
-                        resnet18    = resnet.ResNet18(num_classes=NO_CLASSES).cuda()
+                        # For semi-supervised
+                        if args.self_supervised:
+                            resnet18 = sim_model
+                            # Reset model's fully connected layer
+                            resnet18.fc = nn.Linear(512, NO_CLASSES)
+                            
+                            # Freeze Encoding part
+                            for name, param in resnet18.named_parameters():
+                                if name not in ['fc.weight', 'fc.bias']:
+                                    param.requires_grad = False
+                            # initiate fully connected layer
+                            resnet18.fc.weight.data.normal_(mean=0.0, std=0.01)
+                            resnet18.fc.bias.data.zero_()
+
+                        else:
+                            resnet18    = resnet.ResNet18(num_classes=NO_CLASSES).cuda()
+
                     if method == 'lloss' or 'TA-VAAL':
-                        #loss_module = LossNet(feature_sizes=[16,8,4,2], num_channels=[128,128,256,512]).cuda()
                         loss_module = LossNet().cuda()
                 else:
                     args, transformer = setup(args, NO_CLASSES)
@@ -204,7 +222,13 @@ if __name__ == '__main__':
                 
                 # Loss, criterion and scheduler (re)initialization
                 criterion      = nn.CrossEntropyLoss(reduction='none')
-                optim_backbone = optim.SGD(models['backbone'].parameters(), lr=LR, 
+                if args.self_supervised:
+                    # update only fully connected parameters
+                    parameters = list(filter(lambda p: p.requires_grad, models['backbone'].parameters()))
+                else:
+                    parameters = models['backbone'].parameters()
+                    
+                optim_backbone = optim.SGD(parameters(), lr=LR, 
                     momentum=MOMENTUM, weight_decay=WDECAY)
     
                 sched_backbone = lr_scheduler.MultiStepLR(optim_backbone, milestones=MILESTONES)
