@@ -129,7 +129,7 @@ if __name__ == '__main__':
             sim_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
 
             sim_model.to(args.device)
-            sim_model = torch.nn.DataParallel(sim_model)
+            # sim_model = torch.nn.DataParallel(sim_model)
 
             sim_criterion = nn.CosineSimilarity(dim=1).cuda(args.device)
 
@@ -194,7 +194,7 @@ if __name__ == '__main__':
                     else:
                         # For semi-supervised
                         if args.self_supervised:
-                            resnet18 = sim_model.module.encoder
+                            resnet18 = sim_model.encoder
                             # Reset model's fully connected layer
                             resnet18.fc = nn.Linear(512, NO_CLASSES).to(args.device)
                             
