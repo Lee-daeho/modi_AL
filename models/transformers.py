@@ -273,7 +273,7 @@ class VisionTransformer(nn.Module):
         x, attn_weights = self.transformer(x)   #x is encoded after norm
         logits = self.head(x[:, 0]) #use only CLS patch
         
-        return logits
+        return logits , 0, 0, 0 # Will be corrected
         if labels is not None:
             loss_fct = CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_classes), labels.view(-1))

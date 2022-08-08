@@ -41,8 +41,8 @@ def test(models, epoch, method, dataloaders, mode='val'):
                 inputs = inputs.cuda()
                 labels = labels.cuda()
 
-#            scores, _, _ = models['backbone'](inputs)
-            scores = models['backbone'](inputs)
+            scores, _, _ = models['backbone'](inputs)
+            # scores = models['backbone'](inputs)
             _, preds = torch.max(scores.data, 1)
             total += labels.size(0)
             correct += (preds == labels).sum().item()
@@ -90,8 +90,8 @@ def train_epoch(models, method, criterion, optimizers, dataloaders, epoch, epoch
         if method == 'lloss' or method == 'TA-VAAL':
             optimizers['module'].zero_grad()
 
-        # scores, _, features = models['backbone'](inputs) 
-        scores = models['backbone'](inputs) 
+        scores, _, features = models['backbone'](inputs) 
+        
         target_loss = criterion(scores, labels)
 
         if method == 'lloss' or method == 'TA-VAAL':

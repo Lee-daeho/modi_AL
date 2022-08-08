@@ -194,9 +194,9 @@ if __name__ == '__main__':
                     else:
                         # For semi-supervised
                         if args.self_supervised:
-                            resnet18 = sim_model
+                            resnet18 = sim_model.module.encoder
                             # Reset model's fully connected layer
-                            resnet18.fc = nn.Linear(512, NO_CLASSES)
+                            resnet18.fc = nn.Linear(512, NO_CLASSES).to(args.device)
                             
                             # Freeze Encoding part
                             for name, param in resnet18.named_parameters():
@@ -228,7 +228,7 @@ if __name__ == '__main__':
                 else:
                     parameters = models['backbone'].parameters()
                     
-                optim_backbone = optim.SGD(parameters(), lr=LR, 
+                optim_backbone = optim.SGD(parameters, lr=LR, 
                     momentum=MOMENTUM, weight_decay=WDECAY)
     
                 sched_backbone = lr_scheduler.MultiStepLR(optim_backbone, milestones=MILESTONES)
