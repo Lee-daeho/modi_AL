@@ -233,18 +233,25 @@ class Encoder(nn.Module):
         self.vis = vis
         self.layer = nn.ModuleList()
         self.encoder_norm = LayerNorm(config.hidden_size, eps=1e-6)
-        for _ in range(config.transformer["num_layers"]):
+        self.num_layers = config.transformer["num_layers"]
+
+        for _ in range(self.num_layers):
             layer = Block(config, vis)
             self.layer.append(copy.deepcopy(layer))
 
     def forward(self, hidden_states):
         attn_weights = []
-        for layer_block in self.layer:
+        features = []
+        for i, layer_block in enumerate(self.layer):
             hidden_states, weights = layer_block(hidden_states)
             if self.vis:
                 attn_weights.append(weights)
+            
+            if i >= self.num_layers - 4:        # get the hidden_features
+                features.append(hidden_states[:, 0])
+
         encoded = self.encoder_norm(hidden_states)
-        return encoded, attn_weights
+        return encoded, attn_weights, features
 
 
 class Transformer(nn.Module):
@@ -255,8 +262,8 @@ class Transformer(nn.Module):
 
     def forward(self, input_ids):
         embedding_output = self.embeddings(input_ids)
-        encoded, attn_weights = self.encoder(embedding_output)
-        return encoded, attn_weights
+        encoded, attn_weights, features = self.encoder(embedding_output)
+        return encoded, attn_weights, features
 
 
 class VisionTransformer(nn.Module):
@@ -270,10 +277,11 @@ class VisionTransformer(nn.Module):
         self.head = Linear(config.hidden_size, num_classes)
 
     def forward(self, x, labels=None):        
-        x, attn_weights = self.transformer(x)   #x is encoded after norm
-        logits = self.head(x[:, 0]) #use only CLS patch
+        x, attn_weights, features = self.transformer(x)   #x is encoded after norm
+        logits = self.head(x[:, 0]) #use only CLS patch B * 1 * 768
         
-        return logits , 0, 0, 0 # Will be corrected
+        return logits , x[:,0].squeeze(), features # Return the classify results, the last CLS patch, and CLS patches from 4 last layers
+
         if labels is not None:
             loss_fct = CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_classes), labels.view(-1))

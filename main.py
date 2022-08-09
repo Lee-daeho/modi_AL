@@ -209,10 +209,13 @@ if __name__ == '__main__':
                         else:
                             resnet18    = resnet.ResNet18(num_classes=NO_CLASSES).cuda()
 
-                    if method == 'lloss' or 'TA-VAAL':
-                        loss_module = LossNet().cuda()
+                    if method == 'lloss' or method == 'TA-VAAL':
+                        loss_module = LossNet(base_model = args.base_model).cuda()
                 else:
                     args, transformer = setup(args, NO_CLASSES)
+
+                    if method == 'lloss' or method == 'TA-VAAL':
+                        loss_module = LossNet(num_channels = [CONFIGS[args.model_type].hidden_size]*4, base_model = args.base_model).cuda()
 
             if args.base_model == 'resnet':
                 models      = {'backbone': resnet18}
@@ -225,6 +228,7 @@ if __name__ == '__main__':
                 if args.self_supervised:
                     # update only fully connected parameters
                     parameters = list(filter(lambda p: p.requires_grad, models['backbone'].parameters()))
+                    LR=30
                 else:
                     parameters = models['backbone'].parameters()
                     
