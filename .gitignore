@@ -1,7 +1,10 @@
-###weight files
+###Weight files
 
 *.pth
 *.tar
 
-###result files
+###Result files
 *.txt
+
+###Config file
+config.py

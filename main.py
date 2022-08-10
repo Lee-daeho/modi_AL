@@ -160,12 +160,13 @@ if __name__ == '__main__':
                     loss.backward()
                     sim_optimizer.step()
                 
-            #     save_checkpoint({               
-            #     'epoch': epoch + 1,
-            #     'arch': args.base_model,
-            #     'state_dict': sim_model.state_dict(),
-            #     'optimizer' : sim_optimizer.state_dict(),
-            # }, is_best=False, filename='sim_models/' + 'checkpoint_{:04d}.pth.tar'.format(epoch))
+                if epoch % 10 == 0:
+                    save_checkpoint({               
+                    'epoch': epoch + 1,
+                    'arch': args.base_model,
+                    'state_dict': sim_model.state_dict(),
+                    'optimizer' : sim_optimizer.state_dict(),
+                }, is_best=False, filename='sim_models/' + 'checkpoint_{:04d}.pth.tar'.format(epoch))
 
 
         if args.total:
