@@ -92,6 +92,8 @@ def adjust_learning_rate(optimizer, init_lr, epoch, args):
 # Main
 if __name__ == '__main__':
 
+    if not os.path.exists('sim_models'):
+        os.mkdir('sim_models')
     method = args.method_type
     methods = ['Random', 'UncertainGCN', 'CoreGCN', 'CoreSet', 'lloss','VAAL','TA-VAAL']
     datasets = ['cifar10','cifar10im', 'cifar100', 'fashionmnist','svhn']

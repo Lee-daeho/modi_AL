@@ -3,6 +3,9 @@
 *.pth
 *.tar
 
+###Weight folder
+sim_models/
+
 ###Result files
 *.txt
 
