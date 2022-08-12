@@ -149,6 +149,7 @@ if __name__ == '__main__':
             losses = AverageMeter('Loss', ":.4f")
 
             for epoch in range(SIM_EPOCH):
+                print('epoch : ',epoch)
                 adjust_learning_rate(sim_optimizer, init_lr, epoch, args)
 
                 #train
@@ -175,12 +176,14 @@ if __name__ == '__main__':
                 }, is_best=False, filename='sim_models/' + 'checkpoint_{:04d}.pth.tar'.format(epoch))
 
         elif args.self_supervised and args.add_pretrained:
-            
+        
             sim_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
 
             checkpoint = torch.load('sim_models/'+args.add_pretrained)
 
-            sim_model.load_state_dict(checkpoint['state_dict'])
+            print('loading pretrained weights {}'.format(args.add_pretrained))
+
+            sim_model.load_state_dict(checkpoint['state_dict']).to(args.device)
 
         if args.total:
             labeled_set= indices
