@@ -183,7 +183,8 @@ if __name__ == '__main__':
 
             print('loading pretrained weights {}'.format(args.add_pretrained))
 
-            sim_model.load_state_dict(checkpoint['state_dict']).to(args.device)
+            sim_model.load_state_dict(checkpoint['state_dict'])
+
 
         if args.total:
             labeled_set= indices
@@ -211,7 +212,7 @@ if __name__ == '__main__':
                     else:
                         # For semi-supervised
                         if args.self_supervised:
-                            resnet18 = sim_model.encoder
+                            resnet18 = sim_model.encoder.to(args.device)
                             # Reset model's fully connected layer
                             resnet18.fc = nn.Linear(512, NO_CLASSES).to(args.device)
                             
