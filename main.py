@@ -62,8 +62,6 @@ parser.add_argument("--img_size", type=int, default=32,
 parser.add_argument("--self_supervised", action='store_true')
 parser.add_argument("--sim_epoch", type=int, default=800,
                     help="SimSiam Network epochs")
-parser.add_argument("--sim_lr", type=int, default=0.1,
-                    help="SimSiam Network epochs")
 parser.add_argument("--add_pretrained", type=str, default=None)
 args = parser.parse_args()
 
@@ -131,7 +129,6 @@ if __name__ == '__main__':
 
         if args.self_supervised and not args.add_pretrained:
             SIM_EPOCH = args.sim_epoch
-            SIM_LR = args.sim_lr
 
             init_lr = SIM_LR * SIM_BATCH / 256
 
