@@ -246,7 +246,6 @@ if __name__ == '__main__':
                 if args.self_supervised:
                     # update only fully connected parameters
                     parameters = list(filter(lambda p: p.requires_grad, models['backbone'].parameters()))
-                    LR=30
                 else:
                     parameters = models['backbone'].parameters()
                     
