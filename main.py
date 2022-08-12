@@ -62,6 +62,8 @@ parser.add_argument("--img_size", type=int, default=32,
 parser.add_argument("--self_supervised", action='store_true')
 parser.add_argument("--sim_epoch", type=int, default=800,
                     help="SimSiam Network epochs")
+parser.add_argument("--sim_lr", type=int, default=0.1,
+                    help="SimSiam Network epochs")
 parser.add_argument("--add_pretrained", type=str, default=None)
 args = parser.parse_args()
 
@@ -129,6 +131,7 @@ if __name__ == '__main__':
 
         if args.self_supervised and not args.add_pretrained:
             SIM_EPOCH = args.sim_epoch
+            SIM_LR = args.sim_lr
 
             init_lr = SIM_LR * SIM_BATCH / 256
 
@@ -265,6 +268,8 @@ if __name__ == '__main__':
             else:
                 ###Transformer
                 models = {'backbone': transformer}
+                if method =='lloss' or method == 'TA-VAAL':
+                    models = {'backbone': transformer, 'module': loss_module}
                 criterion      = nn.CrossEntropyLoss(reduction='none')
                 optim_backbone = torch.optim.SGD(models['backbone'].parameters(),
                             lr=LR_TR,
@@ -275,6 +280,12 @@ if __name__ == '__main__':
 
                 optimizers = {'backbone': optim_backbone}
                 schedulers = {'backbone': sched_backbone}                
+                if method == 'lloss' or method == 'TA-VAAL':
+                    optim_module   = optim.SGD(models['module'].parameters(), lr=LR, 
+                        momentum=MOMENTUM, weight_decay=WDECAY)
+                    sched_module   = lr_scheduler.MultiStepLR(optim_module, milestones=MILESTONES)
+                    optimizers = {'backbone': optim_backbone, 'module': optim_module}
+                    schedulers = {'backbone': sched_backbone, 'module': sched_module}                
 
             # Training and testing
             train(models, method, criterion, optimizers, schedulers, dataloaders, args.no_of_epochs, EPOCHL)
