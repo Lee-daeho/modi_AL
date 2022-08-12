@@ -60,6 +60,9 @@ parser.add_argument("--weight_decay", default=0, type=float,
 parser.add_argument("--img_size", type=int, default=32,
                     help="Image size for training and test")
 parser.add_argument("--self_supervised", action='store_true')
+parser.add_argument("--sim_epoch", type=int, default=800,
+                    help="SimSiam Network epochs")
+parser.add_argument("--add_pretrained", type=str, default=None)
 args = parser.parse_args()
 
 
@@ -124,7 +127,8 @@ if __name__ == '__main__':
         random.shuffle(indices)
         sim_model = None
 
-        if args.self_supervised:
+        if args.self_supervised and not args.add_pretrained:
+            SIM_EPOCH = args.sim_epoch
 
             init_lr = SIM_LR * SIM_BATCH / 256
 
@@ -170,6 +174,13 @@ if __name__ == '__main__':
                     'optimizer' : sim_optimizer.state_dict(),
                 }, is_best=False, filename='sim_models/' + 'checkpoint_{:04d}.pth.tar'.format(epoch))
 
+        elif args.self_supervised and args.add_pretrained:
+            
+            sim_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
+
+            checkpoint = torch.load('sim_models/'+args.add_pretrained)
+
+            sim_model.load_state_dict(checkpoint['state_dict'])
 
         if args.total:
             labeled_set= indices
@@ -222,7 +233,7 @@ if __name__ == '__main__':
 
             if args.base_model == 'resnet':
                 models      = {'backbone': resnet18}
-                if method =='lloss' or 'TA-VAAL':
+                if method =='lloss' or method == 'TA-VAAL':
                     models = {'backbone': resnet18, 'module': loss_module}
                 torch.backends.cudnn.benchmark = True
                 
@@ -241,7 +252,7 @@ if __name__ == '__main__':
                 sched_backbone = lr_scheduler.MultiStepLR(optim_backbone, milestones=MILESTONES)
                 optimizers = {'backbone': optim_backbone}
                 schedulers = {'backbone': sched_backbone}
-                if method == 'lloss' or 'TA-VAAL':
+                if method == 'lloss' or method == 'TA-VAAL':
                     optim_module   = optim.SGD(models['module'].parameters(), lr=LR, 
                         momentum=MOMENTUM, weight_decay=WDECAY)
                     sched_module   = lr_scheduler.MultiStepLR(optim_module, milestones=MILESTONES)
