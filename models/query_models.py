@@ -291,7 +291,7 @@ class Discriminator(nn.Module):
 class TDiscriminator(nn.Module):
     """Adversary architecture(Discriminator) for WAE-GAN."""
     def __init__(self, z_dim=10):
-        super(Discriminator, self).__init__()
+        super(TDiscriminator, self).__init__()
         self.z_dim = z_dim
         self.net = nn.Sequential(
             nn.Linear(z_dim + 1, 512),
