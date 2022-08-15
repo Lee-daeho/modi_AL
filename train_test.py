@@ -30,8 +30,6 @@ def LossPredLoss(input, target, margin=1.0, reduction='mean'):
 def test(models, epoch, method, dataloaders, mode='val'):
     assert mode == 'val' or mode == 'test'
     models['backbone'].eval()
-    if method == 'lloss':
-        models['module'].eval()
     
     total = 0
     correct = 0
@@ -42,7 +40,6 @@ def test(models, epoch, method, dataloaders, mode='val'):
                 labels = labels.cuda()
 
             scores, _, _ = models['backbone'](inputs)
-            # scores = models['backbone'](inputs)
             _, preds = torch.max(scores.data, 1)
             total += labels.size(0)
             correct += (preds == labels).sum().item()
@@ -73,7 +70,6 @@ def test_tsne(models, epoch, method, dataloaders, mode='val'):
 
 iters = 0
 def train_epoch(models, method, criterion, optimizers, dataloaders, epoch, epoch_loss):
-
 
     models['backbone'].train()
     if method == 'lloss' or method == 'TA-VAAL':

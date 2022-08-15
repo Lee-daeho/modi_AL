@@ -248,7 +248,7 @@ class Encoder(nn.Module):
                 attn_weights.append(weights)
             
             if i >= self.num_layers - 4:        # get the hidden_features
-                features.append(hidden_states[:, 0])
+                features.append(hidden_states[:, 0])    #4 * B * 1 * 768
 
         encoded = self.encoder_norm(hidden_states)
         return encoded, attn_weights, features

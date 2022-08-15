@@ -26,4 +26,5 @@ EPOCHV = 100 # VAAL number of epochs
 MOMENTUM = 0.9
 WDECAY = 5e-4#2e-3# 5e-4
 
+SIM_LR = 0.1
 SIM_BATCH = 128

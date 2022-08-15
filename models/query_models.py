@@ -28,7 +28,7 @@ class LossNet(nn.Module):
     def forward(self, features):
         if self.base_model == 'resnet':
             out1 = self.GAP1(features[0])
-        else:
+        else:            
             out1 = features[0]
         out1 = out1.view(out1.size(0), -1)
         out1 = F.relu(self.FC1(out1))
@@ -194,7 +194,7 @@ class VAE(nn.Module):
 class TVAE(nn.Module):
     """Encoder-Decoder architecture for both WAE-MMD and WAE-GAN."""
     def __init__(self, z_dim=32, nc=3, f_filt=4):
-        super(VAE, self).__init__()
+        super(TVAE, self).__init__()
         self.z_dim = z_dim
         self.nc = nc
         self.f_filt = f_filt
