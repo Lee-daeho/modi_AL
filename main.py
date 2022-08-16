@@ -173,7 +173,7 @@ if __name__ == '__main__':
                     'arch': args.base_model,
                     'state_dict': sim_model.state_dict(),
                     'optimizer' : sim_optimizer.state_dict(),
-                }, is_best=False, filename='sim_models/' + 'checkpoint_{:04d}.pth.tar'.format(epoch))
+                }, is_best=False, filename='sim_models/' + args.dataset +'_checkpoint_{:04d}.pth.tar'.format(epoch))
 
         elif args.self_supervised and args.add_pretrained:
         
