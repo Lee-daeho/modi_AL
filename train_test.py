@@ -117,7 +117,7 @@ def train(models, method, criterion, optimizers, schedulers, dataloaders, num_ep
     best_acc = 0.
     
     for epoch in range(num_epochs):
-
+        print('epoch : ',epoch)
         best_loss = torch.tensor([0.5]).cuda()
         loss = train_epoch(models, method, criterion, optimizers, dataloaders, epoch, epoch_loss)
 
@@ -125,10 +125,10 @@ def train(models, method, criterion, optimizers, schedulers, dataloaders, num_ep
         if method == 'lloss' or method == 'TA-VAAL':
             schedulers['module'].step()
 
-        if False and epoch % 20  == 7:
+        if True and epoch % 20  == 7:
             acc = test(models, epoch, method, dataloaders, mode='test')
             # acc = test(models, dataloaders, mc, 'test')
-            if best_acc < acc:
+            if best_acc < acc: 
                 best_acc = acc
-                print('Val Acc: {:.3f} \t Best Acc: {:.3f}'.format(acc, best_acc))
+            print('Val Acc: {:.3f} \t Best Acc: {:.3f}'.format(acc, best_acc))
     print('>> Finished.')
