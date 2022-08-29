@@ -63,6 +63,8 @@ parser.add_argument("--self_supervised", action='store_true')
 parser.add_argument("--sim_epoch", type=int, default=800,
                     help="SimSiam Network epochs")
 parser.add_argument("--add_pretrained", type=str, default=None)
+parser.add_argument("--frozen", action='store_true')
+parser.add_argument("--lr", type=float, default=None)
 args = parser.parse_args()
 
 
@@ -106,6 +108,8 @@ if __name__ == '__main__':
     '''
     method_type: 'Random', 'UncertainGCN', 'CoreGCN', 'CoreSet', 'lloss','VAAL','TA-VAAL'
     '''
+    if args.lr:
+        LR = args.lr
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     time = datetime.now().strftime("%y-%m-%d-%H-%M")
     results = open('results_'+time + '_' +str(args.method_type)+"_"+args.dataset +'_' + args.base_model + '_self-supervised' + str(args.self_supervised)+ '.txt','w')
@@ -217,9 +221,10 @@ if __name__ == '__main__':
                             resnet18.fc = nn.Linear(512, NO_CLASSES).to(args.device)
                             
                             # Freeze Encoding part
-                            for name, param in resnet18.named_parameters():
-                                if name not in ['fc.weight', 'fc.bias']:
-                                    param.requires_grad = False
+                            if not args.frozen:
+                                for name, param in resnet18.named_parameters():
+                                    if name not in ['fc.weight', 'fc.bias']:
+                                        param.requires_grad = False
                             # initiate fully connected layer
                             resnet18.fc.weight.data.normal_(mean=0.0, std=0.01)
                             resnet18.fc.bias.data.zero_()
