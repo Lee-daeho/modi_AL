@@ -65,7 +65,7 @@ class SamplingMethod(object):
   def to_dict(self):
     return None
 
-
+ 
 
 class kCenterGreedy(SamplingMethod):
 
