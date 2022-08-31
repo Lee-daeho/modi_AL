@@ -3,6 +3,7 @@
 import os
 import random
 import math
+import copy
 import torch
 import numpy as np
 import torch.nn as nn
@@ -15,6 +16,7 @@ import torchvision.models as models
 import argparse
 from datetime import datetime
 from tqdm import tqdm
+import pickle
 # Custom
 import models.resnet as resnet
 from models.resnet import vgg11
@@ -22,7 +24,7 @@ from models.query_models import LossNet
 from models.simsiam import SimSiam
 from train_test import train, test
 from load_dataset import load_dataset, load_sim_dataset
-from selection_methods import query_samples
+from selection_methods import query_samples, get_kcg
 from config import *
 from models.transformers import CONFIGS, VisionTransformer
 from utils import *
@@ -65,6 +67,7 @@ parser.add_argument("--sim_epoch", type=int, default=800,
 parser.add_argument("--add_pretrained", type=str, default=None)
 parser.add_argument("--frozen", action='store_true')
 parser.add_argument("--lr", type=float, default=None)
+parser.add_argument("--initial", action="store_true")
 args = parser.parse_args()
 
 
@@ -91,7 +94,6 @@ def adjust_learning_rate(optimizer, init_lr, epoch, args):
             param_group['lr'] = init_lr
         else:
             param_group['lr'] = cur_lr
-
 
 ##
 # Main
@@ -130,68 +132,88 @@ if __name__ == '__main__':
         indices = list(range(NUM_TRAIN))
         random.shuffle(indices)
         sim_model = None
+        initial_data = None
+        saving = None
 
-        if args.self_supervised and not args.add_pretrained:
-            SIM_EPOCH = args.sim_epoch
+        if args.self_supervised:
+            if not args.add_pretrained:
+                SIM_EPOCH = args.sim_epoch
 
-            init_lr = SIM_LR * SIM_BATCH / 256
+                init_lr = SIM_LR * SIM_BATCH / 256
 
-            sim_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
+                sim_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
 
-            sim_model.to(args.device)
-            # sim_model = torch.nn.DataParallel(sim_model)
+                sim_model.to(args.device)
+                # sim_model = torch.nn.DataParallel(sim_model)
 
-            sim_criterion = nn.CosineSimilarity(dim=1).cuda(args.device)
+                sim_criterion = nn.CosineSimilarity(dim=1).cuda(args.device)
 
-            optim_params = sim_model.parameters()
-            sim_optimizer = torch.optim.SGD(optim_params, init_lr, momentum=0.9)
-            
-            sim_train_dataset = load_sim_dataset(args.dataset)
-
-            sim_train_loader = DataLoader(sim_train_dataset, batch_size=SIM_BATCH, shuffle=(True), pin_memory=True)
-
-            losses = AverageMeter('Loss', ":.4f")
-
-            for epoch in range(SIM_EPOCH):
-                print('epoch : ',epoch)
-                adjust_learning_rate(sim_optimizer, init_lr, epoch, args)
-
-                #train
-                sim_model.train()
-                for i, (images, _) in tqdm(enumerate(sim_train_loader)):
-                    images[0] = images[0].cuda(args.device)
-                    images[1] = images[1].cuda(args.device)
-
-                    p1, p2, z1, z2 = sim_model(x1=images[0], x2=images[1])
-                    loss = -(sim_criterion(p1, z2).mean() + sim_criterion(p2, z1).mean()) * 0.5
-
-                    losses.update(loss.item(), images[0].size(0))
-
-                    sim_optimizer.zero_grad()
-                    loss.backward()
-                    sim_optimizer.step()
+                optim_params = sim_model.parameters()
+                sim_optimizer = torch.optim.SGD(optim_params, init_lr, momentum=0.9)
                 
-                if epoch % 10 == 0:
-                    save_checkpoint({               
-                    'epoch': epoch + 1,
-                    'arch': args.base_model,
-                    'state_dict': sim_model.state_dict(),
-                    'optimizer' : sim_optimizer.state_dict(),
-                }, is_best=False, filename='sim_models/' + args.dataset +'_checkpoint_{:04d}.pth.tar'.format(epoch))
+                sim_train_dataset = load_sim_dataset(args.dataset)
 
-        elif args.self_supervised and args.add_pretrained:
-        
-            sim_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
+                sim_train_loader = DataLoader(sim_train_dataset, batch_size=SIM_BATCH, shuffle=(True), pin_memory=True)
 
-            checkpoint = torch.load('sim_models/'+args.add_pretrained)
+                losses = AverageMeter('Loss', ":.4f")
 
-            print('loading pretrained weights {}'.format(args.add_pretrained))
+                for epoch in range(SIM_EPOCH):
+                    print('epoch : ',epoch)
+                    adjust_learning_rate(sim_optimizer, init_lr, epoch, args)
 
-            sim_model.load_state_dict(checkpoint['state_dict'])
+                    #train
+                    sim_model.train()
+                    for i, (images, _) in tqdm(enumerate(sim_train_loader)):
+                        images[0] = images[0].cuda(args.device)
+                        images[1] = images[1].cuda(args.device)
+
+                        p1, p2, z1, z2 = sim_model(x1=images[0], x2=images[1])
+                        loss = -(sim_criterion(p1, z2).mean() + sim_criterion(p2, z1).mean()) * 0.5
+
+                        losses.update(loss.item(), images[0].size(0))
+
+                        sim_optimizer.zero_grad()
+                        loss.backward()
+                        sim_optimizer.step()
+                    
+                    if epoch % 10 == 0:
+                        args.add_pretrained = args.dataset + '_checkpoint_{:04d}.pth.tar'.format(epoch)
+                        save_checkpoint({               
+                        'epoch': epoch + 1,
+                        'arch': args.base_model,
+                        'state_dict': sim_model.state_dict(),
+                        'optimizer' : sim_optimizer.state_dict(),
+                    }, is_best=False, filename='sim_models/' + args.dataset +'_checkpoint_{:04d}.pth.tar'.format(epoch))
+
+            elif args.add_pretrained:
+            
+                sim_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
+
+                checkpoint = torch.load('sim_models/'+args.add_pretrained)
+
+                print('loading pretrained weights {}'.format(args.add_pretrained))
+
+                sim_model.load_state_dict(checkpoint['state_dict'])
+            
+            if args.initial:
+                initial_sd = pickle.loads(pickle.dumps(copy.deepcopy(sim_model.state_dict())))
+                initial_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
+                initial_model.load_state_dict(initial_sd)
+                initial_model = initial_model.cuda()
+
+                fulldata_loader = DataLoader(data_train, batch_size=BATCH)
+
+                initial_data = get_initial_kcg(initial_model.encoder, fulldata_loader, ADDENDUM, NUM_TRAIN)
 
 
         if args.total:
             labeled_set= indices
+        
+        if args.initial:
+            labeled_set = indices[:ADDENDUM]
+            unlabeled_set = [x for x in indices if x not in labeled_set]
+            # labeled_set = initial_data[-ADDENDUM:]
+            # unlabeled_set = [x for x in initial_data if x not in labeled_set]
         else:
             labeled_set = indices[:ADDENDUM]
             unlabeled_set = [x for x in indices if x not in labeled_set]
@@ -212,11 +234,19 @@ if __name__ == '__main__':
             with torch.cuda.device(CUDA_VISIBLE_DEVICES):
                 if args.base_model == 'resnet':
                     if args.dataset == "fashionmnist":
-                        resnet18    = resnet.ResNet18fm(num_classes=NO_CLASSES).cuda()
+                        resnet18    = resnet.ResNet18fm(num_classes=NO_CLASSES).to(args.device)
                     else:
-                        # For semi-supervised
+                        # For self-supervised
                         if args.self_supervised:
-                            resnet18 = sim_model.encoder.to(args.device)
+                            new_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
+
+                            checkpoint = torch.load('sim_models/'+args.add_pretrained)
+
+                            print('loading pretrained weights {}'.format(args.add_pretrained))
+
+                            new_model.load_state_dict(checkpoint['state_dict'])
+
+                            resnet18 = new_model.encoder.to(args.device)
                             # Reset model's fully connected layer
                             resnet18.fc = nn.Linear(512, NO_CLASSES).to(args.device)
                             
