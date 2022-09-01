@@ -29,7 +29,6 @@ from data.sampler import SubsetSequentialSampler
 from config import *
 from models.transformers import CONFIGS, VisionTransformer
 from utils import *
-from kmeans_pytorch import kmeans
 
 
 parser = argparse.ArgumentParser()
@@ -294,7 +293,7 @@ if __name__ == '__main__':
                 optimizers = {'backbone': optim_backbone}
                 schedulers = {'backbone': sched_backbone}
                 if method == 'lloss' or method == 'TA-VAAL':
-                    optim_module   = optim.SGD(models['module'].parameters(), lr=LR, 
+                    optim_module   = optim.SGD(models['module'].parameters(), lr=LR_MODULE, 
                         momentum=MOMENTUM, weight_decay=WDECAY)
                     sched_module   = lr_scheduler.MultiStepLR(optim_module, milestones=MILESTONES)
                     optimizers = {'backbone': optim_backbone, 'module': optim_module}
