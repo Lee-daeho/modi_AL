@@ -116,7 +116,8 @@ if __name__ == '__main__':
         LR = args.lr
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     time = datetime.now().strftime("%y-%m-%d-%H-%M")
-    results = open('results_'+time + '_' +str(args.method_type)+"_"+args.dataset +'_' + args.base_model + '_self-supervised' + str(args.self_supervised)+ '.txt','w')
+    results = open('results_'+time + '_' +str(args.method_type)+"_"+args.dataset +'_' + args.base_model + '_self-supervised' + str(args.self_supervised)+ 
+            '_initial_'+ str(args.initial) + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen)+ '.txt','w')
     print("Dataset: %s"%args.dataset)
     print("Method type:%s"%method)
     if args.total:
