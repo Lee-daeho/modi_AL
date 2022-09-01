@@ -25,9 +25,11 @@ from models.simsiam import SimSiam
 from train_test import train, test
 from load_dataset import load_dataset, load_sim_dataset
 from selection_methods import query_samples, get_kcg
+from data.sampler import SubsetSequentialSampler
 from config import *
 from models.transformers import CONFIGS, VisionTransformer
 from utils import *
+from kmeans_pytorch import kmeans
 
 
 parser = argparse.ArgumentParser()
@@ -201,19 +203,19 @@ if __name__ == '__main__':
                 initial_model.load_state_dict(initial_sd)
                 initial_model = initial_model.cuda()
 
-                fulldata_loader = DataLoader(data_train, batch_size=BATCH)
+                unlabeled_initial = indices[:SUBSET]
+                fulldata_loader = DataLoader(data_train, batch_size=BATCH, sampler=SubsetSequentialSampler(unlabeled_initial))
 
                 initial_data = get_initial_kcg(initial_model.encoder, fulldata_loader, ADDENDUM, NUM_TRAIN)
-
 
         if args.total:
             labeled_set= indices
         
         if args.initial:
-            labeled_set = indices[:ADDENDUM]
-            unlabeled_set = [x for x in indices if x not in labeled_set]
-            # labeled_set = initial_data[-ADDENDUM:]
-            # unlabeled_set = [x for x in initial_data if x not in labeled_set]
+            # labeled_set = indices[:ADDENDUM]
+            # unlabeled_set = [x for x in indices if x not in labeled_set]
+            labeled_set = initial_data[-ADDENDUM:]
+            unlabeled_set = [x for x in initial_data if x not in labeled_set]
         else:
             labeled_set = indices[:ADDENDUM]
             unlabeled_set = [x for x in indices if x not in labeled_set]
