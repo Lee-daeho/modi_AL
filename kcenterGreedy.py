@@ -117,6 +117,7 @@ class kCenterGreedy(SamplingMethod):
         Returns:
           indices of points selected to minimize distance to cluster centers
         """
+        self.already_selected = already_selected
 
         try:
           # Assumes that the transform function takes in original data and not
