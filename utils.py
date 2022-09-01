@@ -3,7 +3,6 @@ import shutil
 import numpy as np
 from kcenterGreedy import kCenterGreedy
 from config import *
-from kmeans_pytorch import kmeans, pairwise_distance
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
