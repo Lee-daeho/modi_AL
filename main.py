@@ -21,7 +21,7 @@ import pickle
 import models.resnet as resnet
 from models.resnet import vgg11
 from models.query_models import LossNet
-from models.simsiam import SimSiam
+from models.simsiam import SimSiam, Loss_SimSiam
 from train_test import train, test
 from load_dataset import load_dataset, load_sim_dataset
 from selection_methods import query_samples, get_kcg
@@ -69,6 +69,7 @@ parser.add_argument("--add_pretrained", type=str, default=None)
 parser.add_argument("--frozen", action='store_true')
 parser.add_argument("--lr", type=float, default=None)
 parser.add_argument("--initial", action="store_true")
+parser.add_argument("--lloss", action="store_true")
 args = parser.parse_args()
 
 
@@ -136,6 +137,9 @@ if __name__ == '__main__':
         sim_model = None
         initial_data = None
         saving = None
+        
+        loss_model = None
+        lloss_name = args.dataset +'_checkpoint_{:04d}.pth.tar'.format(800)
 
         if args.self_supervised:
             if not args.add_pretrained:
@@ -156,6 +160,15 @@ if __name__ == '__main__':
                 sim_train_dataset = load_sim_dataset(args.dataset)
 
                 sim_train_loader = DataLoader(sim_train_dataset, batch_size=SIM_BATCH, shuffle=(True), pin_memory=True)
+                if method == 'lloss' or method == 'TA-VAAL':
+                    loss_model = LossNet(base_model = args.base_model).cuda()
+                    sim_lloss = Loss_SimSiam(loss_model)
+
+                    sim_lloss.to(args.device)
+
+                    lloss_criterion = nn.CosineSimilarity(dim=1).cuda(args.device)
+                    lloss_optim_params = sim_lloss.parameters()
+                    lloss_optimizer = torch.optim.SGD(lloss_optim_params, init_lr, momentum=0.9)
 
                 losses = AverageMeter('Loss', ":.4f")
 
@@ -169,16 +182,35 @@ if __name__ == '__main__':
                         images[0] = images[0].cuda(args.device)
                         images[1] = images[1].cuda(args.device)
 
-                        p1, p2, z1, z2 = sim_model(x1=images[0], x2=images[1])
+                        p1, p2, z1, z2, features1, features2 = sim_model(x1=images[0], x2=images[1])
                         loss = -(sim_criterion(p1, z2).mean() + sim_criterion(p2, z1).mean()) * 0.5
+
+                        if method == 'lloss' or method == 'TA-VAAL':
+                            features1[0] = features1[0].detach()
+                            features1[1] = features1[1].detach()
+                            features1[2] = features1[2].detach()
+                            features1[3] = features1[3].detach()
+
+                            features2[0] = features2[0].detach()
+                            features2[1] = features2[1].detach()
+                            features2[2] = features2[2].detach()
+                            features2[3] = features2[3].detach()
+
+                            pl1, pl2, zl1, zl2 = sim_lloss(features1, features2)
+                            lloss_loss = -(lloss_criterion(pl1, zl2).mean() + lloss_criterion(pl2, zl2).mean()) * 0.5
 
                         losses.update(loss.item(), images[0].size(0))
 
                         sim_optimizer.zero_grad()
                         loss.backward()
                         sim_optimizer.step()
+
+                        if method == 'lloss' or method == 'TA-VAAL':
+                            lloss_optimizer.zero_grad()
+                            lloss_loss.backward()
+                            lloss_optimizer.step()
                     
-                    if epoch % 10 == 0:
+                    if (epoch + 1) % 200 == 0:
                         args.add_pretrained = args.dataset + '_checkpoint_{:04d}.pth.tar'.format(epoch)
                         save_checkpoint({               
                         'epoch': epoch + 1,
@@ -186,6 +218,14 @@ if __name__ == '__main__':
                         'state_dict': sim_model.state_dict(),
                         'optimizer' : sim_optimizer.state_dict(),
                     }, is_best=False, filename='sim_models/' + args.dataset +'_checkpoint_{:04d}.pth.tar'.format(epoch))
+
+                        lloss_name = args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(epoch)
+                        save_checkpoint({               
+                            'epoch': epoch + 1,
+                            'arch': args.base_model,
+                            'state_dict': sim_lloss.state_dict(),
+                            'optimizer' : lloss_optimizer.state_dict(),
+                        }, is_best=False, filename='sim_models/' + args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(epoch))
 
             elif args.add_pretrained:
             
@@ -196,7 +236,17 @@ if __name__ == '__main__':
                 print('loading pretrained weights {}'.format(args.add_pretrained))
 
                 sim_model.load_state_dict(checkpoint['state_dict'])
-            
+
+                if args.lloss:
+                    sim_lloss = Loss_SimSiam(LossNet(base_model = args.base_model))
+
+                    checkpoint = torch.load('sim_models/' + lloss_name)
+
+                    print('loading pretrained weights {}'.format(lloss_name))
+
+                    sim_lloss.load_state_dict(checkpoint['state_dict'])
+
+
             if args.initial:
                 initial_sd = pickle.loads(pickle.dumps(copy.deepcopy(sim_model.state_dict())))
                 initial_model = SimSiam(resnet.ResNet18(zero_init_residual=True))
@@ -251,6 +301,19 @@ if __name__ == '__main__':
                             resnet18 = new_model.encoder.to(args.device)
                             # Reset model's fully connected layer
                             resnet18.fc = nn.Linear(512, NO_CLASSES).to(args.device)
+
+                            if method == 'lloss' or method == 'TA-VAAL':
+                                new_lloss = Loss_SimSiam(LossNet(base_model = args.base_model))
+
+                                checkpoint = torch.load('sim_models/' + lloss_name)
+
+                                print('loading pretrained weights {}'.format(lloss_name))
+
+                                new_lloss.load_state_dict(checkpoint['state_dict'])
+
+                                loss_module = new_lloss.encoder.to(args.device)
+
+                                loss_module.linear = nn.Linear(512, 1).to(args.device)
                             
                             # Freeze Encoding part
                             if not args.frozen:
@@ -264,7 +327,7 @@ if __name__ == '__main__':
                         else:
                             resnet18    = resnet.ResNet18(num_classes=NO_CLASSES).cuda()
 
-                    if method == 'lloss' or method == 'TA-VAAL':
+                    if method == 'lloss' or method == 'TA-VAAL' and not args.self_supervised:
                         loss_module = LossNet(base_model = args.base_model).cuda()
                 else:
                     args, transformer = setup(args, NO_CLASSES)
