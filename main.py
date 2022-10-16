@@ -244,7 +244,7 @@ if __name__ == '__main__':
                 optim_params = auto_model.parameters()
                 auto_optimizer = torch.optim.SGD(optim_params, init_lr, momentum=0.9)
                 
-                auto_train_dataset = load_dataset(args.dataset)
+                auto_train_dataset, _, _, _, _, _ = load_dataset(args.dataset)
 
                 auto_train_loader = DataLoader(auto_train_dataset, batch_size=SIM_BATCH, shuffle=(True), pin_memory=True)
                 # if method == 'lloss' or method == 'TA-VAAL':
