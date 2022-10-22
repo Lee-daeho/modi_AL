@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class AutoEncoder(nn.Module):
     """
@@ -28,26 +29,24 @@ class AutoEncoder(nn.Module):
         #                                 nn.BatchNorm1d(dim, affine=False)) # output layer
         self.encoder.fc = nn.Linear(prev_dim, prev_dim)
 
-        self.equal_linear = nn.Sequential(
-            nn.Linear(prev_dim, 1024),
-            nn.BatchNorm1d(1024),
-            nn.Linear(1024,512*4*4),
-            nn.BatchNorm1d(512*4*4)
-        )
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(512, 256, 3, padding=1, stride=1),
+            nn.ConvTranspose2d(512, 256, 4, padding=1, stride=2),
             nn.BatchNorm2d(256),
+            nn.ReLU(),
             nn.ConvTranspose2d(256, 128, 4, padding=1, stride=2),
             nn.BatchNorm2d(128),
+            nn.ReLU(),
             nn.ConvTranspose2d(128, 64, 4, padding=1, stride=2),
             nn.BatchNorm2d(64),
-            nn.ConvTranspose2d(64, 3, 4, padding=2, stride=1)
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 3, 3, padding=1, stride=1)
         )
 
     def forward(self, x):
 
-        out = self.encoder(x)
-        out = self.equal_linear(out)
+        _, out, _ = self.encoder(x)
+        out = out.view(out.size(0), 512, 1, 1)
+        out = F.interpolate(out, scale_factor=4)
         out = self.decoder(out)
 
         return out
