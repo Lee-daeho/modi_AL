@@ -302,8 +302,13 @@ def get_features(models, unlabeled_loader):
             feat = features #.detach().cpu().numpy()
     return feat
 
-def get_kcg(models, labeled_data_size, unlabeled_loader):
+def get_kcg(models, labeled_data_size, unlabeled_loader, args):
     models['backbone'].eval()
+    if args.dataset == 'cifar100':
+        SUBSET=10000
+    else:
+        SUBSET=10000
+
     with torch.cuda.device(CUDA_VISIBLE_DEVICES):
         features = torch.tensor([]).cuda()
 
@@ -316,8 +321,11 @@ def get_kcg(models, labeled_data_size, unlabeled_loader):
         feat = features.detach().cpu().numpy()
         new_av_idx = np.arange(SUBSET,(SUBSET + labeled_data_size))
         sampling = kCenterGreedy(feat)  
+        print('new_av : ',new_av_idx)
         batch = sampling.select_batch_(new_av_idx, ADDENDUM)
+        print('batch : ',batch)
         other_idx = [x for x in range(SUBSET) if x not in batch]
+        print('other idx : ',other_idx)
     return  other_idx + batch
 
 
@@ -400,7 +408,7 @@ def query_samples(model, method, data_unlabeled, subset, labeled_set, cycle, arg
                                     sampler=SubsetSequentialSampler(subset+labeled_set), # more convenient if we maintain the order of subset
                                     pin_memory=True)
 
-        arg = get_kcg(model, ADDENDUM*(cycle+1), unlabeled_loader)
+        arg = get_kcg(model, ADDENDUM*(cycle+1), unlabeled_loader, args)
 
     if method == 'lloss':
         # Create unlabeled dataloader for the unlabeled subset

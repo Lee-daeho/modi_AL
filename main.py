@@ -271,7 +271,7 @@ if __name__ == '__main__':
                         pred = auto_model(image)
                         loss = auto_criterion(image, pred)
 
-                        losses.update(loss.item(), images.size(0))
+                        losses.update(loss.item(), image.size(0))
 
                         auto_optimizer.zero_grad()
                         loss.backward()
@@ -476,7 +476,7 @@ if __name__ == '__main__':
             arg = query_samples(models, method, data_unlabeled, subset, labeled_set, cycle, args)
 
             # Update the labeled dataset and the unlabeled dataset, respectively
-            new_list = list(torch.tensor(subset)[arg][:ADDENDUM].numpy())
+            # new_list = list(torch.tensor(subset)[arg][:ADDENDUM].numpy())
             # print(len(new_list), min(new_list), max(new_list))
             labeled_set += list(torch.tensor(subset)[arg][-ADDENDUM:].numpy())
             listd = list(torch.tensor(subset)[arg][:-ADDENDUM].numpy()) 
