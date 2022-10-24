@@ -72,6 +72,7 @@ parser.add_argument("--lr", type=float, default=None)
 parser.add_argument("--initial", action="store_true")
 parser.add_argument("--lloss", action="store_true")
 parser.add_argument("--self_method", type=str, default="SimSiam")
+parser.add_argument("--addednum", type=int, default=None)
 args = parser.parse_args()
 
 
@@ -132,8 +133,11 @@ if __name__ == '__main__':
 
         # Load training and testing dataset
         data_train, data_unlabeled, data_test, adden, NO_CLASSES, no_train = load_dataset(args.dataset)
-        print('The entire datasize is {}'.format(len(data_train)))       
-        ADDENDUM = adden
+        print('The entire datasize is {}'.format(len(data_train)))      
+        if not args.addednum: 
+            ADDENDUM = adden
+        else:
+            ADDENDUM = args.addednum
         NUM_TRAIN = no_train
         indices = list(range(NUM_TRAIN))
         random.shuffle(indices)

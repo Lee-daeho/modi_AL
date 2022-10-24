@@ -304,10 +304,6 @@ def get_features(models, unlabeled_loader):
 
 def get_kcg(models, labeled_data_size, unlabeled_loader, args):
     models['backbone'].eval()
-    if args.dataset == 'cifar100':
-        SUBSET=10000
-    else:
-        SUBSET=10000
 
     with torch.cuda.device(CUDA_VISIBLE_DEVICES):
         features = torch.tensor([]).cuda()
@@ -321,20 +317,21 @@ def get_kcg(models, labeled_data_size, unlabeled_loader, args):
         feat = features.detach().cpu().numpy()
         new_av_idx = np.arange(SUBSET,(SUBSET + labeled_data_size))
         sampling = kCenterGreedy(feat)  
-        print('new_av : ',new_av_idx)
         batch = sampling.select_batch_(new_av_idx, ADDENDUM)
-        print('batch : ',batch)
         other_idx = [x for x in range(SUBSET) if x not in batch]
-        print('other idx : ',other_idx)
     return  other_idx + batch
 
 
 # Select the indices of the unlablled data according to the methods
 def query_samples(model, method, data_unlabeled, subset, labeled_set, cycle, args):
-    if args.dataset == 'cifar100':
-        ADDENDUM = 2000
+    
+    if not args.addednum:
+        if args.dataset == 'cifar100':
+            ADDENDUM = 2000
+        else:
+            ADDENDUM = 1000
     else:
-        ADDENDUM = 1000
+        ADDENDUM = args.addednum
 
     if method == 'Random':
         arg = np.random.randint(SUBSET, size=SUBSET)
