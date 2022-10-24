@@ -331,6 +331,10 @@ def get_kcg(models, labeled_data_size, unlabeled_loader, args):
 
 # Select the indices of the unlablled data according to the methods
 def query_samples(model, method, data_unlabeled, subset, labeled_set, cycle, args):
+    if args.dataset == 'cifar100':
+        ADDENDUM = 2000
+    else:
+        ADDENDUM = 1000
 
     if method == 'Random':
         arg = np.random.randint(SUBSET, size=SUBSET)
