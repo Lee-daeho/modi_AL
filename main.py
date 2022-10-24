@@ -222,13 +222,13 @@ if __name__ == '__main__':
                         'optimizer' : sim_optimizer.state_dict(),
                     }, is_best=False, filename='sim_models/' + args.dataset +'_checkpoint_{:04d}.pth.tar'.format(epoch))
 
-                        lloss_name = args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(epoch)
-                        save_checkpoint({               
-                            'epoch': epoch + 1,
-                            'arch': args.base_model,
-                            'state_dict': sim_lloss.state_dict(),
-                            'optimizer' : lloss_optimizer.state_dict(),
-                        }, is_best=False, filename='sim_models/' + args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(epoch))
+                        #lloss_name = args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(epoch)
+                        #save_checkpoint({               
+                        #    'epoch': epoch + 1,
+                        #    'arch': args.base_model,
+                        #    'state_dict': sim_lloss.state_dict(),
+                        #    'optimizer' : lloss_optimizer.state_dict(),
+                        #}, is_best=False, filename='sim_models/' + args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(epoch))
 
             elif not args.add_pretrained and self_method == 'encoder':
                 SIM_EPOCH = args.sim_epoch
