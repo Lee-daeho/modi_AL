@@ -89,7 +89,6 @@ def train_epoch(models, method, criterion, optimizers, dataloaders, epoch, epoch
         scores, _, features = models['backbone'](inputs) 
         
         target_loss = criterion(scores, labels)
-
         if method == 'lloss' or method == 'TA-VAAL':
             if epoch > epoch_loss:
                 features[0] = features[0].detach()

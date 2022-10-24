@@ -344,7 +344,7 @@ if __name__ == '__main__':
 
         train_loader = DataLoader(data_train, batch_size=BATCH, 
                                     sampler=SubsetRandomSampler(labeled_set), 
-                                    pin_memory=True, drop_last=True)
+                                    pin_memory=True)
         test_loader  = DataLoader(data_test, batch_size=BATCH)
         dataloaders  = {'train': train_loader, 'test': test_loader}
         
