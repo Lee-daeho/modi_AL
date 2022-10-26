@@ -419,7 +419,7 @@ def query_samples(model, method, data_unlabeled, subset, labeled_set, cycle, arg
 
         # Measure uncertainty of each data points in the subset
         uncertainty = get_uncertainty(model, unlabeled_loader)
-        arg = np.argsort(uncertainty)        
+        arg = np.argsort(uncertainty)
 
     if method == 'VAAL':
         # Create unlabeled dataloader for the unlabeled subset
