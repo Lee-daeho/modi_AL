@@ -32,7 +32,7 @@ def LossPredLoss(input, target, margin=1.0, reduction='mean'):
     return loss
 
 
-def test(models, epoch, method, dataloaders, args, time, foldername, datasize, mode='val'):
+def test(models, epoch, method, dataloaders, args, time, foldername, datasize, trial, mode='val'):
     assert mode == 'val' or mode == 'test'
     models['backbone'].eval()
     deep_features = []
@@ -70,46 +70,69 @@ def test(models, epoch, method, dataloaders, args, time, foldername, datasize, m
             
             plt.legend()
             plt.savefig(foldername + '/' + 'results_' + time + '_' + str(args.method_type)+"_"+args.dataset +'_' + args.base_model + '_self-supervised' + str(args.self_supervised)+ 
-            'datasize_' + str(datasize) + '_initial_'+ str(args.initial) + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen) + '_addednum_' + str(args.addednum) + '.png', dpi=200)
+            'datasize_' + str(datasize) + '_initial_'+ str(args.initial) + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen) + '_addednum_' + str(args.addednum)+ '_trial_' + str(trial) + '.png', dpi=200)
 
     return 100 * correct / total
 
-def test_tsne(models, epoch, method, dataloaders, mode='val'):
-    assert mode == 'val' or mode == 'train'
+
+def test_tsne(models, method, unlabeled_loader, train_loader, cycle, args, foldername, trial):
     models['backbone'].eval()
-    if method == 'lloss':
-        models['module'].eval()
-    out_vec = torch.zeros(0)
-    label = torch.zeros(0).long()
+
+    deep_features = []
+    actual = []
+    num_cls = 10
+    if args.dataset == 'cifar100':
+        num_cls = 100
+    datasize = 0
     with torch.no_grad():
-        for (inputs, labels) in dataloaders:
+        for (inputs, labels) in train_loader:
+            with torch.cuda.device(CUDA_VISIBLE_DEVICES):
+                inputs = inputs.cuda()
+                labels = labels.cuda()
+                _, features, _ = models['backbone'](inputs)
+
+                deep_features += features.detach().cpu().numpy().tolist()
+                actual += [0] * len(labels)
+                datasize += len(labels)
+
+            
+        for inputs, labels, _ in unlabeled_loader:
             with torch.cuda.device(CUDA_VISIBLE_DEVICES):
                 inputs = inputs.cuda()
                 labels = labels.cuda()
 
-            scores, _, _ = models['backbone'](inputs)
-            preds = scores.cpu()
-            labels = labels.cpu()
-            out_vec = torch.cat([out_vec,preds])
-            label = torch.cat([label,labels])
-        out_vec = out_vec.numpy()
-        label = label.numpy()
-    return out_vec,label
+                _, features, _ = models['backbone'](inputs)
+                deep_features += features.detach().cpu().numpy().tolist()
+                actual += [1] * len(labels)
+
+        tsne = TSNE(n_components=2)
+        cluster = np.array(tsne.fit_transform(np.array(deep_features)))
+        actual = np.array(actual)
+
+        plt.figure(figsize=(20,20))
+        for i, label in zip(range(2), ['labeled', 'unlabeled']):
+            idx = np.where(actual == i)
+            plt.scatter(cluster[idx, 0], cluster[idx, 1], marker='.', label=label)
+        
+        
+        plt.legend()
+        plt.savefig(foldername + '/' + 'trial_'+ str(trial) + '_' + str(datasize) + '.png', dpi=200)
 
 iters = 0
-def train_epoch(models, method, criterion, optimizers, dataloaders, epoch, epoch_loss, foldername, num_epochs):
+def train_epoch(models, method, criterion, optimizers, dataloaders, epoch, epoch_loss, foldername, num_epochs, args, trial):
 
     models['backbone'].train()
     if method == 'lloss' or method == 'TA-VAAL':
         models['module'].train()
     
-    class_distrib = os.path.join(foldername, 'classes.txt')
-    
-    class_file = open(class_distrib, 'a')    
+    if args.tsne:
+        class_distrib = os.path.join(foldername, 'trial_{}_classes.txt'.format(trial))
+        
+        class_file = open(class_distrib, 'a')    
 
-    classes = []
-    real_losses = []
-    pred_losses = []
+        classes = []
+        real_losses = []
+        pred_losses = []
 
     global iters
     for data in tqdm(dataloaders['train'], leave=False, total=len(dataloaders['train'])):
@@ -147,18 +170,18 @@ def train_epoch(models, method, criterion, optimizers, dataloaders, epoch, epoch
         if method == 'lloss' or method == 'TA-VAAL':
             optimizers['module'].step()
         
-        if (epoch+1) == num_epochs:
+        if (epoch+1) == num_epochs and args.tsne:
             if method == 'lloss' or method == 'TA-VAAL':
                 real_losses += target_loss.detach().cpu().numpy().tolist()
                 pred_losses += pred_loss.detach().cpu().numpy().tolist()
             classes +=  labels.detach().cpu().numpy().tolist()
     
-    if (epoch+1) == num_epochs:
+    if (epoch+1) == num_epochs and args.tsne:
         counter = Counter()
         counter.update(classes)
         class_file.write("{} : {}\n".format(len(classes), dict(counter)))
         if method == 'lloss' or method == 'TA-VAAL':
-            loss_file = os.path.join(foldername, '{}_loss.csv'.format(len(classes)))
+            loss_file = os.path.join(foldername, 'trial_{}_{}_loss.csv'.format(trial, len(classes)))
             df = pd.DataFrame()
             df['real_losses'] = real_losses
             df['pred_losses'] = pred_losses
@@ -167,14 +190,14 @@ def train_epoch(models, method, criterion, optimizers, dataloaders, epoch, epoch
 
     return loss
 
-def train(models, method, criterion, optimizers, schedulers, dataloaders, num_epochs, epoch_loss, foldername):
+def train(models, method, criterion, optimizers, schedulers, dataloaders, num_epochs, epoch_loss, foldername, args, trial):
     print('>> Train a Model.')
     best_acc = 0.
         
     for epoch in range(num_epochs):
 
         best_loss = torch.tensor([0.5]).cuda()
-        loss = train_epoch(models, method, criterion, optimizers, dataloaders, epoch, epoch_loss, foldername, num_epochs)
+        loss = train_epoch(models, method, criterion, optimizers, dataloaders, epoch, epoch_loss, foldername, num_epochs, args, trial)
 
         schedulers['backbone'].step()
         if method == 'lloss' or method == 'TA-VAAL':

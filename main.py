@@ -23,7 +23,7 @@ from models.resnet import vgg11
 from models.query_models import LossNet
 from models.simsiam import SimSiam, Loss_SimSiam
 from models.autoencoder import AutoEncoder
-from train_test import train, test
+from train_test import train, test, test_tsne
 from load_dataset import load_dataset, load_sim_dataset
 from selection_methods import query_samples, get_kcg
 from data.sampler import SubsetSequentialSampler
@@ -487,8 +487,12 @@ if __name__ == '__main__':
                     schedulers = {'backbone': sched_backbone, 'module': sched_module}                
 
             # Training and testing
-            train(models, method, criterion, optimizers, schedulers, dataloaders, args.no_of_epochs, EPOCHL, foldername)
-            acc = test(models, EPOCH, method, dataloaders, args, time, foldername,  len(labeled_set), mode='test')
+            train(models, method, criterion, optimizers, schedulers, dataloaders, args.no_of_epochs, EPOCHL, foldername, args, trial)
+            acc = test(models, EPOCH, method, dataloaders, args, time, foldername,  len(labeled_set), trial, mode='test')
+            if args.tsne:                
+                unlabeled_loader = DataLoader(data_unlabeled, batch_size=BATCH, sampler=SubsetRandomSampler(subset), pin_memory=True)
+                test_tsne(models, method, unlabeled_loader, dataloaders['train'], cycle, args, foldername, trial)
+
             print('Trial {}/{} || Cycle {}/{} || Label set size {}: Test acc {}'.format(trial+1, TRIALS, cycle+1, CYCLES, len(labeled_set), acc))
             np.array([method, trial+1, TRIALS, cycle+1, CYCLES, len(labeled_set), acc]).tofile(results, sep=" ")
             results.write("\n")
