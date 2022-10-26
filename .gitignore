@@ -5,6 +5,7 @@
 
 ###Weight folder
 sim_models/
+results_*/
 
 ###Result files
 *.txt

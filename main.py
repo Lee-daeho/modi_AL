@@ -67,12 +67,14 @@ parser.add_argument("--self_supervised", action='store_true')
 parser.add_argument("--sim_epoch", type=int, default=800,
                     help="SimSiam Network epochs")
 parser.add_argument("--add_pretrained", type=str, default=None)
+parser.add_argument("--add_llosspretrained", type=str, default="cifar10_lloss_checkpiont_0799.pth.tar")
 parser.add_argument("--frozen", action='store_true')
 parser.add_argument("--lr", type=float, default=None)
 parser.add_argument("--initial", action="store_true")
 parser.add_argument("--lloss", action="store_true")
 parser.add_argument("--self_method", type=str, default="SimSiam")
 parser.add_argument("--addednum", type=int, default=None)
+parser.add_argument("--tsne", action='store_true')
 args = parser.parse_args()
 
 
@@ -119,9 +121,14 @@ if __name__ == '__main__':
     if args.lr:
         LR = args.lr
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    time = datetime.now().strftime("%y-%m-%d-%H-%M")
-    results = open('results_'+time + '_' +str(args.method_type)+"_"+args.dataset +'_' + args.base_model + '_self-supervised' + str(args.self_supervised)+ 
-            '_initial_'+ str(args.initial) + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen)+ '.txt','w')
+    time = datetime.now().strftime("%y-%m-%d-%H-%M")    
+    foldername = 'results_'+time + '_' +str(args.method_type)+"_"+args.dataset +'_' + args.base_model + '_self-supervised' + str(args.self_supervised) +'_initial_'+ str(args.initial) + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen) + '_addednum_' + str(args.addednum)
+    
+    if not os.path.exists(foldername):
+        os.mkdir(foldername)
+
+    results = open(foldername + '/' + 'results_'+time + '_' +str(args.method_type)+"_"+args.dataset +'_' + args.base_model + '_self-supervised' + str(args.self_supervised)+ 
+            '_initial_'+ str(args.initial) + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen) + '_addednum_' + str(args.addednum) + '.txt','w')
     print("Dataset: %s"%args.dataset)
     print("Method type:%s"%method)
     if args.total:
@@ -146,7 +153,7 @@ if __name__ == '__main__':
         saving = None
         
         loss_model = None
-        lloss_name = args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(799)
+        lloss_name = None
 
         if args.self_supervised:
             if not args.add_pretrained and self_method == 'SimSiam':
@@ -167,7 +174,7 @@ if __name__ == '__main__':
                 sim_train_dataset = load_sim_dataset(args.dataset)
 
                 sim_train_loader = DataLoader(sim_train_dataset, batch_size=SIM_BATCH, shuffle=(True), pin_memory=True)
-                if method == 'lloss' or method == 'TA-VAAL':
+                if method == 'lloss' or method == 'TA-VAAL' and args.lloss:
                     loss_model = LossNet(base_model = args.base_model).cuda()
                     sim_lloss = Loss_SimSiam(loss_model)
 
@@ -192,7 +199,7 @@ if __name__ == '__main__':
                         p1, p2, z1, z2, features1, features2 = sim_model(x1=images[0], x2=images[1])
                         loss = -(sim_criterion(p1, z2).mean() + sim_criterion(p2, z1).mean()) * 0.5
 
-                        if method == 'lloss' or method == 'TA-VAAL':
+                        if method == 'lloss' or method == 'TA-VAAL' and args.lloss:
                             features1[0] = features1[0].detach()
                             features1[1] = features1[1].detach()
                             features1[2] = features1[2].detach()
@@ -212,7 +219,7 @@ if __name__ == '__main__':
                         loss.backward()
                         sim_optimizer.step()
 
-                        if method == 'lloss' or method == 'TA-VAAL':
+                        if method == 'lloss' or method == 'TA-VAAL' and args.lloss:
                             lloss_optimizer.zero_grad()
                             lloss_loss.backward()
                             lloss_optimizer.step()
@@ -226,13 +233,14 @@ if __name__ == '__main__':
                         'optimizer' : sim_optimizer.state_dict(),
                     }, is_best=False, filename='sim_models/' + args.dataset +'_checkpoint_{:04d}.pth.tar'.format(epoch))
 
-                        #lloss_name = args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(epoch)
-                        #save_checkpoint({               
-                        #    'epoch': epoch + 1,
-                        #    'arch': args.base_model,
-                        #    'state_dict': sim_lloss.state_dict(),
-                        #    'optimizer' : lloss_optimizer.state_dict(),
-                        #}, is_best=False, filename='sim_models/' + args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(epoch))
+                        if args.lloss:
+                            lloss_name = args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(epoch)
+                            save_checkpoint({               
+                            'epoch': epoch + 1,
+                            'arch': args.base_model,
+                            'state_dict': sim_lloss.state_dict(),
+                            'optimizer' : lloss_optimizer.state_dict(),
+                            }, is_best=False, filename='sim_models/' + args.dataset +'_lloss_checkpoint_{:04d}.pth.tar'.format(epoch))
 
             elif not args.add_pretrained and self_method == 'encoder':
                 SIM_EPOCH = args.sim_epoch
@@ -251,15 +259,15 @@ if __name__ == '__main__':
                 auto_train_dataset, _, _, _, _, _ = load_dataset(args.dataset)
 
                 auto_train_loader = DataLoader(auto_train_dataset, batch_size=SIM_BATCH, shuffle=(True), pin_memory=True)
-                # if method == 'lloss' or method == 'TA-VAAL':
-                #     loss_model = LossNet(base_model = args.base_model).cuda()
-                #     sim_lloss = Loss_SimSiam(loss_model)
+                if method == 'lloss' or method == 'TA-VAAL' and args.lloss:
+                    loss_model = LossNet(base_model = args.base_model).cuda()
+                    sim_lloss = Loss_SimSiam(loss_model)
 
-                #     sim_lloss.to(args.device)
+                    sim_lloss.to(args.device)
 
-                #     lloss_criterion = nn.CosineSimilarity(dim=1).cuda(args.device)
-                #     lloss_optim_params = sim_lloss.parameters()
-                #     lloss_optimizer = torch.optim.SGD(lloss_optim_params, init_lr, momentum=0.9)
+                    lloss_criterion = nn.CosineSimilarity(dim=1).cuda(args.device)
+                    lloss_optim_params = sim_lloss.parameters()
+                    lloss_optimizer = torch.optim.SGD(lloss_optim_params, init_lr, momentum=0.9)
 
                 losses = AverageMeter('Loss', ":.4f")
 
@@ -300,14 +308,15 @@ if __name__ == '__main__':
 
                 sim_model.load_state_dict(checkpoint['state_dict'])
 
-                # if args.lloss:
-                #     sim_lloss = Loss_SimSiam(LossNet(base_model = args.base_model))
+                            
+                if args.lloss:                    
+                    sim_lloss = Loss_SimSiam(LossNet(base_model = args.base_model))
 
-                #     checkpoint = torch.load('sim_models/' + lloss_name)
+                    checkpoint = torch.load('sim_models/' + args.add_llosspretrained)
 
-                #     print('loading pretrained weights {}'.format(lloss_name))
+                    print('loading pretrained weights {}'.format(args.add_llosspretrained))
 
-                #     sim_lloss.load_state_dict(checkpoint['state_dict'])
+                    sim_lloss.load_state_dict(checkpoint['state_dict'])
             
             elif args.add_pretrained and self_method == 'encoder':
 
@@ -382,6 +391,19 @@ if __name__ == '__main__':
                             # initiate fully connected layer
                             resnet18.fc.weight.data.normal_(mean=0.0, std=0.01)
                             resnet18.fc.bias.data.zero_()
+
+                            if args.lloss:
+                                new_lloss = Loss_SimSiam(LossNet(base_model = args.base_model))
+
+                                checkpoint = torch.load('sim_models/' + args.add_llosspretrained)
+
+                                print('loading pretrained weights {}'.format(args.add_llosspretrained))
+
+                                new_lloss.load_state_dict(checkpoint['state_dict'])
+
+                                loss_module = new_lloss.encoder.to(args.device)
+
+                                loss_module.linear = nn.Linear(4 * 128, 1).to(args.device)                                
                         
                         elif args.self_supervised and self_method == 'encoder':
                             new_model = AutoEncoder(resnet.ResNet18(zero_init_residual=True))
@@ -408,7 +430,7 @@ if __name__ == '__main__':
                         else:
                             resnet18    = resnet.ResNet18(num_classes=NO_CLASSES).cuda()
 
-                    if method == 'lloss' or method == 'TA-VAAL':
+                    if method == 'lloss' or method == 'TA-VAAL' and not args.lloss:
                         loss_module = LossNet(base_model = args.base_model).cuda()
                 else:
                     args, transformer = setup(args, NO_CLASSES)
@@ -465,8 +487,8 @@ if __name__ == '__main__':
                     schedulers = {'backbone': sched_backbone, 'module': sched_module}                
 
             # Training and testing
-            train(models, method, criterion, optimizers, schedulers, dataloaders, args.no_of_epochs, EPOCHL)
-            acc = test(models, EPOCH, method, dataloaders, mode='test')
+            train(models, method, criterion, optimizers, schedulers, dataloaders, args.no_of_epochs, EPOCHL, foldername)
+            acc = test(models, EPOCH, method, dataloaders, args, time, foldername,  len(labeled_set), mode='test')
             print('Trial {}/{} || Cycle {}/{} || Label set size {}: Test acc {}'.format(trial+1, TRIALS, cycle+1, CYCLES, len(labeled_set), acc))
             np.array([method, trial+1, TRIALS, cycle+1, CYCLES, len(labeled_set), acc]).tofile(results, sep=" ")
             results.write("\n")
