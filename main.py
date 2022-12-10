@@ -123,7 +123,7 @@ if __name__ == '__main__':
         LR = args.lr
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     time = datetime.now().strftime("%d-%H-%M")    
-    foldername = 'results_'+time + '_' +str(args.method_type)+"_"+args.dataset + '_ssl_' + str(args.self_supervised)[0] +'_initial_'+ str(args.initial)[0] + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen)[0] + '_add_' + str(args.addednum)
+    foldername = 'results_'+time + '_' +str(args.method_type)+"_"+args.dataset + '_ssl_' + str(args.self_supervised)[0] +'_initial_'+ str(args.initial)[0] + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen)[0] + '_add_' + str(args.addednum) + '_layers_' + str(args.layer)
     
     if not os.path.exists(foldername):
         os.mkdir(foldername)
@@ -398,7 +398,7 @@ if __name__ == '__main__':
                                             param.requires_grad = False
                                 else:
                                     pass
-                                
+
                             # initiate fully connected layer
                             resnet18.fc.weight.data.normal_(mean=0.0, std=0.01)
                             resnet18.fc.bias.data.zero_()
