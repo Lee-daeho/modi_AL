@@ -394,7 +394,8 @@ if __name__ == '__main__':
                             else:
                                 if not args.layer == -1:
                                     for name, param in resnet18.named_parameters():
-                                        if name not in ['fc.weight', 'fc.bias'] or name[:6] not in layers[:args.layer]:
+                                        print(name[:6])
+                                        if name not in ['fc.weight', 'fc.bias'] and name[:6] not in layers[:args.layer]:
                                             param.requires_grad = False
                                 else:
                                     pass
