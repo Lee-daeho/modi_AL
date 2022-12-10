@@ -75,6 +75,7 @@ parser.add_argument("--lloss", action="store_true")
 parser.add_argument("--self_method", type=str, default="SimSiam")
 parser.add_argument("--addednum", type=int, default=None)
 parser.add_argument("--tsne", action='store_true')
+parser.add_argument("--layer", type=int, default=-1)
 args = parser.parse_args()
 
 
@@ -121,14 +122,14 @@ if __name__ == '__main__':
     if args.lr:
         LR = args.lr
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    time = datetime.now().strftime("%y-%m-%d-%H-%M")    
-    foldername = 'results_'+time + '_' +str(args.method_type)+"_"+args.dataset +'_' + args.base_model + '_self-supervised' + str(args.self_supervised) +'_initial_'+ str(args.initial) + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen) + '_addednum_' + str(args.addednum)
+    time = datetime.now().strftime("%d-%H-%M")    
+    foldername = 'results_'+time + '_' +str(args.method_type)+"_"+args.dataset + '_ssl_' + str(args.self_supervised)[0] +'_initial_'+ str(args.initial)[0] + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen)[0] + '_add_' + str(args.addednum)
     
     if not os.path.exists(foldername):
         os.mkdir(foldername)
 
-    results = open(foldername + '/' + 'results_'+time + '_' +str(args.method_type)+"_"+args.dataset +'_' + args.base_model + '_self-supervised' + str(args.self_supervised)+ 
-            '_initial_'+ str(args.initial) + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen) + '_addednum_' + str(args.addednum) + '.txt','w')
+    results = open(foldername + '/' + 'results_'+time + '_' +str(args.method_type)+"_"+args.dataset +'_' + '_ssl_' + str(args.self_supervised)[0]+ 
+            '_initial_'+ str(args.initial)[0] + '_lr_' + str(args.lr) + '_frozen_' + str(args.frozen)[0] + '_add_' + str(args.addednum) + '.txt','w')
     print("Dataset: %s"%args.dataset)
     print("Method type:%s"%method)
     if args.total:
@@ -356,6 +357,7 @@ if __name__ == '__main__':
                                     pin_memory=True)
         test_loader  = DataLoader(data_test, batch_size=BATCH)
         dataloaders  = {'train': train_loader, 'test': test_loader}
+        layers = ['layer4', 'layer3', 'layer2', 'layer1']
         
         for cycle in range(CYCLES):
             
@@ -388,6 +390,15 @@ if __name__ == '__main__':
                                 for name, param in resnet18.named_parameters():
                                     if name not in ['fc.weight', 'fc.bias']:
                                         param.requires_grad = False
+                            
+                            else:
+                                if not args.layers == -1:
+                                    for name, param in resnet18.named_parameters():
+                                        if name not in ['fc.weight', 'fc.bias'] or name[:6] not in layers[:args.layer]:
+                                            param.requires_grad = False
+                                else:
+                                    pass
+                                
                             # initiate fully connected layer
                             resnet18.fc.weight.data.normal_(mean=0.0, std=0.01)
                             resnet18.fc.bias.data.zero_()
@@ -423,6 +434,7 @@ if __name__ == '__main__':
                                 for name, param in resnet18.named_parameters():
                                     if name not in ['fc.weight', 'fc.bias']:
                                         param.requires_grad = False
+                            
                             # initiate fully connected layer
                             resnet18.fc.weight.data.normal_(mean=0.0, std=0.01)
                             resnet18.fc.bias.data.zero_()
