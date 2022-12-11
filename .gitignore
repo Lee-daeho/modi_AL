@@ -12,3 +12,5 @@ results_*/
 
 ###Config file
 config.py
+
+*.pyc
