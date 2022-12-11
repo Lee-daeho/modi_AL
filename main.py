@@ -112,7 +112,7 @@ if __name__ == '__main__':
     method = args.method_type
     self_method = args.self_method
     methods = ['Random', 'UncertainGCN', 'CoreGCN', 'CoreSet', 'lloss','VAAL','TA-VAAL']
-    datasets = ['cifar10','cifar10im', 'cifar100', 'fashionmnist','svhn']
+    datasets = ['cifar10','cifar10im', 'cifar100', 'fashionmnist','svhn', 'imagenet']
     assert method in methods, 'No method %s! Try options %s'%(method, methods)
     assert args.dataset in datasets, 'No dataset %s! Try options %s'%(args.dataset, datasets)
     assert args.base_model in ['resnet', 'transformer']
@@ -307,7 +307,7 @@ if __name__ == '__main__':
 
                 print('loading pretrained weights {}'.format(args.add_pretrained))
 
-                sim_model.load_state_dict(checkpoint['state_dict'])
+                sim_model.load_state_dict(checkpoint['state_dict'], strict=False)
 
                             
                 if args.lloss:                    
@@ -379,7 +379,7 @@ if __name__ == '__main__':
 
                             print('loading pretrained weights {}'.format(args.add_pretrained))
 
-                            new_model.load_state_dict(checkpoint['state_dict'])
+                            new_model.load_state_dict(checkpoint['state_dict'], strict=False)
 
                             resnet18 = new_model.encoder.to(args.device)
                             # Reset model's fully connected layer
@@ -394,7 +394,6 @@ if __name__ == '__main__':
                             else:
                                 if not args.layer == -1:
                                     for name, param in resnet18.named_parameters():
-                                        print(name[:6])
                                         if name not in ['fc.weight', 'fc.bias'] and name[:6] not in layers[:args.layer]:
                                             param.requires_grad = False
                                 else:

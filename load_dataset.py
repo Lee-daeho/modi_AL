@@ -2,7 +2,7 @@ import numpy as np
 from torch.utils.data import DataLoader, Dataset
 from config import *
 import torchvision.transforms as T
-from torchvision.datasets import CIFAR100, CIFAR10, FashionMNIST, SVHN
+from torchvision.datasets import CIFAR100, CIFAR10, FashionMNIST, SVHN, ImageNet
 from PIL import ImageFilter
 import random
 
@@ -64,6 +64,9 @@ def load_sim_dataset(dataset):
     elif dataset == 'svhn':
         data_train = SVHN('../svhn', split='train', download=True, 
                                     transform=TwoCropsTransform(T.Compose(augmentation)))
+    
+    elif dataset == 'imagenet':
+        data_train = ImageNet('../ImageNet', split='train', download=None, transform=TwoCropsTransform(T.Compose(augmentation)))
 
     return data_train
 
@@ -99,6 +102,9 @@ class MyDataset(Dataset):
             # Set target and data to dataset
             self.cifar10.targets = targets[imbal_class_indices]
             self.cifar10.data = self.cifar10.data[imbal_class_indices]
+        if self.dataset_name == 'imagenet':
+            self.imagenet = ImageNet('../ImageNet', split='train',
+                                        download=None, transform=transf)
 
     def __getitem__(self, index):
         if self.dataset_name == "cifar10":
@@ -111,6 +117,8 @@ class MyDataset(Dataset):
             data, target = self.fmnist[index]
         if self.dataset_name == "svhn":
             data, target = self.svhn[index]
+        if self.dataset_name == 'imagenet':
+            data, target = self.imagenet[index]
         return data, target, index
 
     def __len__(self):
@@ -124,13 +132,16 @@ class MyDataset(Dataset):
             return len(self.fmnist)
         elif self.dataset_name == "svhn":
             return len(self.svhn)
+        elif self.dataset_name == 'imagenet':
+            return len(self.imagenet)
 ##
 
 # Data
 def load_dataset(dataset):
+    imagesize = 224 if dataset == 'imagenet' else 32
     train_transform = T.Compose([
         T.RandomHorizontalFlip(),
-        T.RandomCrop(size=32, padding=4),
+        T.RandomCrop(size=imagesize, padding=4),
         T.ToTensor(),
         T.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010]) # T.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)) # CIFAR-100
     ])
@@ -199,5 +210,16 @@ def load_dataset(dataset):
         NO_CLASSES = 10
         NUM_TRAIN = len(data_train)        
         adden = ADDENDUM
+        no_train = NUM_TRAIN
+    
+    elif dataset == 'imagenet':
+        data_train = ImageNet('../ImageNet', split='train', download=None,
+                                            transform=train_transform)
+        data_unlabeled = MyDataset(dataset, True, test_transform)
+        data_test = ImageNet('../ImageNet', split='train', download=None,
+                                            transform=test_transform)
+        NO_CLASSES = 1000
+        NUM_TRAIN = len(data_train)
+        adden = 5000
         no_train = NUM_TRAIN
     return data_train, data_unlabeled, data_test, adden, NO_CLASSES, no_train
