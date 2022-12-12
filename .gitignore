@@ -5,9 +5,12 @@
 
 ###Weight folder
 sim_models/
+results_*/
 
 ###Result files
 *.txt
 
 ###Config file
 config.py
+
+*.pyc

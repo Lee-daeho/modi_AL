@@ -65,7 +65,7 @@ class SamplingMethod(object):
   def to_dict(self):
     return None
 
-
+ 
 
 class kCenterGreedy(SamplingMethod):
 
@@ -117,7 +117,6 @@ class kCenterGreedy(SamplingMethod):
         Returns:
           indices of points selected to minimize distance to cluster centers
         """
-
         try:
           # Assumes that the transform function takes in original data and not
           # flattened data.
@@ -130,7 +129,7 @@ class kCenterGreedy(SamplingMethod):
           self.update_distances(already_selected, only_new=True, reset_dist=False)
 
         new_batch = []
-
+        print('obs : ',self.n_obs)
         for _ in range(N):
           if self.already_selected is None:
             # Initialize centers with a randomly selected datapoint

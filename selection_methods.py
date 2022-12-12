@@ -302,8 +302,9 @@ def get_features(models, unlabeled_loader):
             feat = features #.detach().cpu().numpy()
     return feat
 
-def get_kcg(models, labeled_data_size, unlabeled_loader):
+def get_kcg(models, labeled_data_size, unlabeled_loader, args):
     models['backbone'].eval()
+
     with torch.cuda.device(CUDA_VISIBLE_DEVICES):
         features = torch.tensor([]).cuda()
 
@@ -323,6 +324,14 @@ def get_kcg(models, labeled_data_size, unlabeled_loader):
 
 # Select the indices of the unlablled data according to the methods
 def query_samples(model, method, data_unlabeled, subset, labeled_set, cycle, args):
+    
+    if not args.addednum:
+        if args.dataset == 'cifar100':
+            ADDENDUM = 2000
+        else:
+            ADDENDUM = 1000
+    else:
+        ADDENDUM = args.addednum
 
     if method == 'Random':
         arg = np.random.randint(SUBSET, size=SUBSET)
@@ -400,7 +409,7 @@ def query_samples(model, method, data_unlabeled, subset, labeled_set, cycle, arg
                                     sampler=SubsetSequentialSampler(subset+labeled_set), # more convenient if we maintain the order of subset
                                     pin_memory=True)
 
-        arg = get_kcg(model, ADDENDUM*(cycle+1), unlabeled_loader)
+        arg = get_kcg(model, ADDENDUM*(cycle+1), unlabeled_loader, args)
 
     if method == 'lloss':
         # Create unlabeled dataloader for the unlabeled subset
@@ -410,7 +419,7 @@ def query_samples(model, method, data_unlabeled, subset, labeled_set, cycle, arg
 
         # Measure uncertainty of each data points in the subset
         uncertainty = get_uncertainty(model, unlabeled_loader)
-        arg = np.argsort(uncertainty)        
+        arg = np.argsort(uncertainty)
 
     if method == 'VAAL':
         # Create unlabeled dataloader for the unlabeled subset
